@@ -1,4 +1,13 @@
 <?php 
+
+/**
+ * Implementation of function json_encode on PHP
+ * 
+ * @author Alexander Muzychenko
+ * @link https://github.com/alexmuz/php-json
+ * @see http://php.net/json_encode
+ * @license GNU Lesser General Public License (LGPL) http://www.gnu.org/copyleft/lesser.html
+ */
 if (!function_exists('json_encode')) {  
     function json_encode($value) 
     {
