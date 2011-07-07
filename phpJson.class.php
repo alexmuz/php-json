@@ -1,22 +1,67 @@
 <?php
 
-/**
- * Implementation of function json_decode on PHP
- *
- * @author Alexander Muzychenko
- * @link https://github.com/alexmuz/php-json
- * @see http://php.net/json_decode
- * @license GNU Lesser General Public License (LGPL) http://www.gnu.org/copyleft/lesser.html
- */
-if (!function_exists('json_decode')) {
-
-	function json_decode($json, $assoc = false)
+class phpJson
+{
+	public static function encode($value)
+	{
+		mb_internal_encoding("UTF-8");
+        if (is_int($value)) {
+            return (string)$value;   
+        } elseif (is_string($value)) {
+	        $value = str_replace(array('\\', '/', '"', "\r", "\n", "\b", "\f", "\t"), 
+	                             array('\\\\', '\/', '\"', '\r', '\n', '\b', '\f', '\t'), $value);
+	        $convmap = array(0x80, 0xFFFF, 0, 0xFFFF);
+	        $result = "";
+	        for ($i = mb_strlen($value) - 1; $i >= 0; $i--) {
+	            $mb_char = mb_substr($value, $i, 1);
+	            if (mb_ereg("&#(\\d+);", mb_encode_numericentity($mb_char, $convmap, "UTF-8"), $match)) {
+	                $result = sprintf("\\u%04x", $match[1]) . $result;
+	            } else {
+	                $result = $mb_char . $result;
+	            }
+	        }
+	        return '"' . $result . '"';                
+        } elseif (is_float($value)) {
+            return str_replace(",", ".", $value);         
+        } elseif (is_null($value)) {
+            return 'null';
+        } elseif (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        } elseif (is_array($value)) {
+            $with_keys = false;
+            $n = count($value);
+            for ($i = 0, reset($value); $i < $n; $i++, next($value)) {
+                        if (key($value) !== $i) {
+			      $with_keys = true;
+			      break;
+                        }
+            }
+        } elseif (is_object($value)) {
+            $with_keys = true;
+        } else {
+            return '';
+        }
+        $result = array();
+        if ($with_keys) {
+            foreach ($value as $key => $v) {
+                $result[] = self::encode((string)$key) . ':' . self::encode($v);    
+            }
+            return '{' . implode(',', $result) . '}';                
+        } else {
+            foreach ($value as $key => $v) {
+                $result[] = self::encode($v);    
+            }
+            return '[' . implode(',', $result) . ']';
+        }
+	}
+	
+	public static function decode($json, $assoc = false)
 	{
 		mb_internal_encoding("UTF-8");
 	    $i = 0;
         $n = strlen($json);
         try {
-            $result = json_decode_value($json, $i, $assoc);
+            $result = self::decode_value($json, $i, $assoc);
             while ($i < $n && $json[$i] && $json[$i] <= ' ') $i++;
             if ($i < $n) {
                 return null;
@@ -27,7 +72,7 @@ if (!function_exists('json_decode')) {
         }		
 	}
 	
-	function json_decode_value($json, &$i, $assoc = false)
+	private static function decode_value($json, &$i, $assoc = false)
 	{
         $n = strlen($json);
         while ($i < $n && $json[$i] && $json[$i] <= ' ') $i++;
@@ -43,15 +88,15 @@ if (!function_exists('json_decode')) {
 	                return $result;
 	            }
 	            while ($i < $n) {
-	                $key = json_decode_string($json, $i);
+	                $key = self::decode_string($json, $i);
 	                while ($i < $n && $json[$i] && $json[$i] <= ' ') $i++;
 	                if ($json[$i++] != ':') {
 	                    throw new Exception("Expected ':' on ".($i - 1));
 	                }
 	                if ($assoc) {
-	                    $result[$key] = json_decode_value($json, $i, $assoc);
+	                    $result[$key] = self::decode_value($json, $i, $assoc);
 	                } else {
-	                    $result->$key = json_decode_value($json, $i, $assoc);
+	                    $result->$key = self::decode_value($json, $i, $assoc);
 	                }
 	                while ($i < $n && $json[$i] && $json[$i] <= ' ') $i++;
 	                if ($json[$i] === '}') {
@@ -74,7 +119,7 @@ if (!function_exists('json_decode')) {
 	                return array();
 	            }
 	            while ($i < $n) {
-	                $result[] = json_decode_value($json, $i, $assoc);
+	                $result[] = self::decode_value($json, $i, $assoc);
 	                while ($i < $n && $json[$i] && $json[$i] <= ' ') $i++;
 	                if ($json[$i] === ']') {
 	                    $i++;
@@ -88,10 +133,10 @@ if (!function_exists('json_decode')) {
 	            throw new Exception("Syntax error");
             // string
             case '"':
-                return json_decode_string($json, $i);
+                return self::decode_string($json, $i);
             // number
             case '-':
-                return json_decode_number($json, $i);
+                return self::decode_number($json, $i);
             // true
             case 't':
                  if ($i + 3 < $n && substr($json, $i, 4) === 'true') {
@@ -113,14 +158,14 @@ if (!function_exists('json_decode')) {
             default:
             	// number
                 if ($json[$i] >= '0' && $json[$i] <= '9') {
-                    return json_decode_number($json, $i);
+                    return self::decode_number($json, $i);
                 } else {
                     throw new Exception("Syntax error");
                 };
         }
 	}
 	
-	function json_decode_string($json, &$i)
+	private static function decode_string($json, &$i)
 	{
         $result = '';
         $escape = array('"' => '"', '\\' => '\\', '/' => '/', 'b' => "\b", 'f' => "\f", 'n' => "\n", 'r' => "\r", 't' => "\t");
@@ -150,7 +195,7 @@ if (!function_exists('json_decode')) {
      	throw new Exception("Syntax error"); 		
 	}
 	
-	function json_decode_number($json, &$i)
+	private static function decode_number($json, &$i)
 	{
         $result = '';
         if ($json[$i] === '-') {
@@ -182,4 +227,19 @@ if (!function_exists('json_decode')) {
          
         return (0 + $result);		
 	}
+}
+
+
+if (!function_exists('json_encode')) {
+    function json_encode($value)
+    {
+        return phpJson::encode($value);
+    }
+}
+
+if (!function_exists('json_decode')) {
+    function json_decode($json, $assoc) 
+    {
+        return phpJson::decode($json, $assoc);
+    }
 }
