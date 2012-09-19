@@ -25,6 +25,8 @@ class phpJsonTest extends PHPUnit_Framework_TestCase
     	    array(1.2e-2),
     	    array('1.2e-2'),
     	    array("1.2e-2"),
+
+	    array('привет+мир'),
     	    
             array(array(null, true, array(1, 2, 3), "hello\"],[world!")),
             array('hello world'),
@@ -45,6 +47,12 @@ class phpJsonTest extends PHPUnit_Framework_TestCase
             array(array('this' => array('that'))),
             array(array('params' => array(array('foo' => array('1'), 'bar' => '1')))),
             array(array('0' => array('foo' => 'bar', 'baz' => 'winkle'))),
+            array(array('id1' => array(
+            				'field1' => array(1, 2 ,3), 
+            				'field2' => 'test', 
+            				'field3' => 'value'
+                       ), 
+                    'id2' => 'value2')),
             array(array (
               'params' => array (
                 0 => array (
